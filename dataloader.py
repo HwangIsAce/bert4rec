@@ -152,7 +152,7 @@ def collate_fn(batch):
 
     return {'input_ids': torch.stack(collate_input_ids), 'labels' : torch.stack(collate_labels)}
 
-def MyDataLoader(batch_size=32):
+def MyDataLoader(batch_size=train_constants.BATCH_SIZE):
 
     seed_everything()
     input_ids, labels = preprocessing()     
@@ -169,4 +169,4 @@ def MyDataLoader(batch_size=32):
 
 if __name__ == "__main__":
 
-    train_loader, valid_loader, test_loader = MyDataLoader(batch_size=32) # input_ids tensor type -> float?
+    train_loader, valid_loader, test_loader = MyDataLoader(batch_size=train_constants.BATCH_SIZE) # input_ids tensor type -> float?
