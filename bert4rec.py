@@ -1,6 +1,7 @@
 import torch
 from torch import nn, einsum
 from einops import rearrange
+import numpy as np
 
 from dataloader import MyDataLoader
 from constants import TRAIN_CONSTANTS
@@ -20,7 +21,6 @@ class FeedForward(nn.Module):
 class Attention(nn.Module):
     def __init__(
             self,
-            vocab_size,
             emb_dim,
             heads,
     ):
@@ -28,35 +28,44 @@ class Attention(nn.Module):
         self.heads = heads
         self.multi_head_dim = emb_dim // heads
         self.norm = nn.LayerNorm(emb_dim)
-        self.to_qkv = nn.Linear(emb_dim, emb_dim *3)
+        self.to_qkv = nn.Linear(emb_dim, self.multi_head_dim *3)
+        self.scale = emb_dim**-0.5
+        self.softmax = nn.Softmax(dim = -1)
 
-    def forward(self, x):
+        self.to_out = nn.Linear(self.multi_head_dim, emb_dim)
+
+    def forward(self, x):  # bias? # dropout?
         x = self.norm(x)
 
         q, k, v = self.to_qkv(x).chunk(3, dim=-1)
         q, k, v = map(lambda t : rearrange(t, 'b n (h d) -> b h n d', h=self.heads), (q,k,v))
+        q = q * self.scale
 
         sim = einsum('b h i d, b h j d -> b h i j', q,k)
-        import IPython; IPython.embed(colors="Linux"); exit(1)
-        
+        attn_map = self.softmax(sim)
 
+        out = einsum('b h i j, b h j d -> b h i d', attn_map, v) 
+
+        out = rearrange(out, 'b h n d -> b n (h d)', h=self.heads)
+        out = self.to_out(out)
+
+        return out
 
     
 class Transformer(nn.Module):
     def __init__(
         self,
-        vocab_size,
         emb_dim,
         heads,
-        num_layers= 2,
+        depth= 2,
     ):
         super().__init__()
 
         self.layer = nn.ModuleList([])
 
-        for _ in range(num_layers):
+        for _ in range(depth):
             self.layer.append(nn.ModuleList([
-                Attention(vocab_size, emb_dim, heads),
+                Attention(emb_dim, heads),
                 FeedForward()
             ]))
 
@@ -64,7 +73,7 @@ class Transformer(nn.Module):
         
         for attn, ffn in self.layer:
             attn_out = attn(x)
-
+            
             x = x + attn_out
             x = x + ffn(x)
 
@@ -85,7 +94,7 @@ class BERT4REC(nn.Module):
         self.item_embedder = nn.Embedding(vocab_size, emb_dim)
         self.positional_embedder = nn.Embedding(max_len+1,emb_dim)
 
-        self.transformer = Transformer(vocab_size, emb_dim, heads)
+        self.transformer = Transformer(emb_dim, heads)
 
     def forward(self, x):
         if x.shape[1] > self.max_len :
@@ -125,3 +134,5 @@ if __name__ == "__main__":
         input = batch['input_ids'].long()
         
         tt = model(input) ## test 
+
+        
