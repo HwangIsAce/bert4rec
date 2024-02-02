@@ -6,17 +6,13 @@ import numpy as np
 from dataloader import MyDataLoader
 from constants import TRAIN_CONSTANTS
 
-
-class FeedForward(nn.Module):
-    def __init__(
-            self,
-    ):
-        super().__init__()
-        self.norm = nn.LayerNorm(train_constants.EMB_DIM)
-    
-    def forward(self, x):
-        x = self.norm(x)
-
+def FeedForward(dim):
+    return nn.Sequential(
+        nn.LayerNorm(dim),
+        nn.Linear(dim, dim*4),
+        nn.GELU(),
+        nn.Linear(dim*4, dim)
+    )
 
 class Attention(nn.Module):
     def __init__(
@@ -51,7 +47,6 @@ class Attention(nn.Module):
 
         return out
 
-    
 class Transformer(nn.Module):
     def __init__(
         self,
@@ -66,14 +61,14 @@ class Transformer(nn.Module):
         for _ in range(depth):
             self.layer.append(nn.ModuleList([
                 Attention(emb_dim, heads),
-                FeedForward()
+                FeedForward(emb_dim)
             ]))
 
     def forward(self, x):
         
         for attn, ffn in self.layer:
             attn_out = attn(x)
-            
+
             x = x + attn_out
             x = x + ffn(x)
 
@@ -128,11 +123,21 @@ if __name__ == "__main__":
                      train_constants.EMB_DIM, 
                      train_constants.MAX_LEN,
                      heads=8)
+    
+    cross_entropy_loss = nn.CrossEntropyLoss()
 
+    # train
     for i, batch in enumerate(train_loader):
 
-        input = batch['input_ids'].long()
+        input_ids = batch['input_ids'].long()
+        labels = batch['labels'].long()
         
-        tt = model(input) ## test 
+        logits = model(input_ids) ## test
+
+        import IPython; IPython.embed(colors="Linux"); exit(1) 
+
+        loss = cross_entropy_loss(logits, labels)
+
+        import IPython; IPython.embed(colors="Linux"); exit(1)
 
         
