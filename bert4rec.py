@@ -2,6 +2,7 @@ import torch
 from torch import nn, einsum
 from einops import rearrange
 import numpy as np
+from torch.optim import Adam
 
 from dataloader import MyDataLoader
 from constants import TRAIN_CONSTANTS
@@ -87,13 +88,14 @@ class BERT4REC(nn.Module):
         self.max_len = max_len
 
         self.item_embedder = nn.Embedding(vocab_size, emb_dim)
-        self.positional_embedder = nn.Embedding(max_len+1,emb_dim)
+        self.positional_embedder = nn.Embedding(vocab_size,emb_dim)   # random 
 
         self.transformer = Transformer(emb_dim, heads)
 
+
     def forward(self, x):
-        if x.shape[1] > self.max_len :
-            x = x[:, :self.max_len]
+        # if x.shape[1] > self.max_len :
+        #     x = x[:, :self.max_len]
         
         # item embedding
         x = self.item_embedder(x)
@@ -119,25 +121,43 @@ if __name__ == "__main__":
 
     train_loader, valid_loader, test_loader = MyDataLoader()
 
+
     model = BERT4REC(train_constants.VOCAB_SIZE, 
                      train_constants.EMB_DIM, 
                      train_constants.MAX_LEN,
                      heads=8)
-    
-    cross_entropy_loss = nn.CrossEntropyLoss()
 
-    # train
-    for i, batch in enumerate(train_loader):
+    def train(model: nn.Module, epoch):
+        model.train()
 
-        input_ids = batch['input_ids'].long()
-        labels = batch['labels'].long()
+        total_loss = 0.0
+        total_iter = 0
         
-        logits = model(input_ids) ## test
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.0005)
+        cross_entropy_loss = nn.CrossEntropyLoss()
 
-        import IPython; IPython.embed(colors="Linux"); exit(1) 
+        for epoch, batch in enumerate(train_loader):
 
-        loss = cross_entropy_loss(logits, labels)
+            input_ids = batch['input_ids'].long()
+            labels = batch['labels'].long()
+            
+            logits = model(input_ids) ## test
 
-        import IPython; IPython.embed(colors="Linux"); exit(1)
+            loss = cross_entropy_loss(logits, labels)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            total_loss += loss.item()
+            total_iter += 1
+
+        mean_loss = total_loss / total_iter
+        print(f"epoch: {epoch+1}, loss: {mean_loss: 1.4f}")
+        
+    for epoch in range(10):
+        train(model, epoch)
+
+    PATH = '/home/jaesung/jaesung/study/bert4rec/output/test.pth'
+    torch.save(model.state_dict(), PATH)
 
         
