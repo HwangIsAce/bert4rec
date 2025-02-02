@@ -1,10 +1,11 @@
-## [목적]
-recommender system modeling from scratch for implementation study 
+# Objective
+Developing a recommender system from the ground up, focusing on implementation studies and practical applications.
 
-## [기술 스택]
+# Timeline
+2024.02.
+
+# Tech Stack
 Python
-Pytorch
-Numpy
+PyTorch
+NumPy
 Pandas
-
-
